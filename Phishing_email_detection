@@ -1,0 +1,96 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# ==========================================
+# 1. DATA PREPARATION (Mock Data for Demo)
+# ==========================================
+data = {
+    'text': [
+        "URGENT: Your bank account has been compromised. Click here to reset your password immediately! http://secure-bank-login-update.com",
+        "Hey, are we still meeting for lunch today at 12:30? Let me know.",
+        "Congratulations! You've won a $1000 Walmart gift card. Claim your prize now at http://bit.ly/fake-free-stuff",
+        "Dear customer, your Amazon invoice for order #84920 is attached. Please review.",
+        "Please review the updated project proposal and provide your feedback by Friday EOD.",
+        "Verify your PayPal account now to avoid suspension. http://paypal-security-verification-alert.net",
+        "Hi Mom, I'll be a bit late coming home tonight. Don't wait up for dinner.",
+        "Your Netflix subscription has expired. Update your credit card details here: http://netflix-billing-renew.com"
+    ],
+    'label': [1, 0, 1, 0, 0, 1, 0, 1]  # 1 = Phishing, 0 = Safe
+}
+
+df = pd.DataFrame(data)
+
+print("Dataset Sample:")
+print(df.head(), "\n" + "="*50 + "\n")
+
+# ==========================================
+# 2. SPLITTING THE DATA
+# ==========================================
+X = df['text']  
+y = df['label']
+
+# FIXED: Changed 'test_test_split' to 'test_size'
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+# ==========================================
+# 3. FEATURE EXTRACTION (TF-IDF)
+# ==========================================
+vectorizer = TfidfVectorizer(stop_words='english', lowercase=True)
+
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# ==========================================
+# 4. TRAINING THE MODEL
+# ==========================================
+model = LogisticRegression()
+model.fit(X_train_tfidf, y_train)
+
+# ==========================================
+# 5. EVALUATION
+# ==========================================
+y_pred = model.predict(X_test_tfidf)
+
+# Calculate Accuracy
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Model Accuracy: {accuracy * 100:.2f}%\n")
+
+# Display Classification Report
+print("Classification Report:")
+print(classification_report(y_test, y_pred, target_names=['Safe', 'Phishing'], zero_division=0))
+
+# Generate and Plot Confusion Matrix
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(6, 4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=['Safe', 'Phishing'],
+            yticklabels=['Safe', 'Phishing'])
+plt.title('Confusion Matrix')
+plt.ylabel('Actual Label')
+plt.xlabel('Predicted Label')
+plt.show()
+
+# ==========================================
+# 6. TESTING WITH NEW EMAILS
+# ==========================================
+def predict_email(custom_email):
+    email_tfidf = vectorizer.transform([custom_email])
+    prediction = model.predict(email_tfidf)[0]
+    probability = model.predict_proba(email_tfidf)[0]
+    
+    status = "Phishing" if prediction == 1 else "Safe"
+    confidence = probability[prediction] * 100
+    
+    print(f"\nEmail: '{custom_email}'")
+    print(f"Prediction: {status} ({confidence:.2f}% Confidence)")
+
+# Test cases
+predict_email("Hey team, here is the link to the Google Doc for our weekly meeting.")
+predict_email("WARNING!! Your account will be closed. Click link to verify http://suspect-link.com")
